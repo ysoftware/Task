@@ -14,8 +14,7 @@ void usage(FILE *stream) {
     flag_print_options(stream);
 }
 
-const char *scan_for_first_tasks_folder(void) {
-    char dir[512] = {0};
+bool scan_for_first_tasks_folder(char *dir) {
     getcwd(dir, 512);
     size_t dir_length = strlen(dir);
 
@@ -34,12 +33,11 @@ const char *scan_for_first_tasks_folder(void) {
                 int tasks_path_length = strlen(TASKS_PATH_COMPONENT);
                 memcpy(&dir[dir_length], TASKS_PATH_COMPONENT, tasks_path_length);
                 dir_length += tasks_path_length;
-
-                char *path = malloc(dir_length + 1);
-                memcpy(path, dir, dir_length + 1);
-                return path;
+                return true;
             }
         }
+
+        nob_da_free(children);
 
         if (stat(dir, &s) != 0 || (s.st_dev == root_dev && s.st_ino == root_ino)) break; // check that dir is not equal to "/"
 
@@ -82,6 +80,40 @@ Nob_String_View get_valid_huid(const char *string) {
     return (Nob_String_View) { .data = string, .count = 15 };
 }
 
+bool list_all_tasks(void) {
+    char tasks_folder[512] = {0};
+    if (!scan_for_first_tasks_folder(tasks_folder)) {
+        printf("Unable to find tasks folder.\n");
+        return false;
+    }
+
+    Nob_File_Paths children = {0};
+    if (!nob_read_entire_dir(tasks_folder, &children)) return false;
+
+    char path[512] = {0};
+    nob_da_foreach(const char *, child, &children) {
+        Nob_String_View huid = get_valid_huid(*child);
+        if (huid.count > 0) {
+            sprintf(path, "%s/%s/task.md", tasks_folder, *child);
+
+            Nob_String_Builder sb = {0};
+            if (!nob_read_entire_file(path, &sb)) {
+                nob_da_free(children);
+                continue;
+            }
+
+            Nob_String_View sv = nob_sb_to_sv(sb);
+            Nob_String_View task_title = nob_sv_chop_by_delim(&sv, '\n');
+            printf("tasks/%s/task.md:1:1 " SV_Fmt "\n", *child, SV_Arg(task_title));
+
+            nob_sb_free(sb);
+        }
+    }
+
+    nob_da_free(children);
+    return true;
+}
+
 int main(int argc, char **argv) {
     bool *ls = flag_bool("ls", NULL, "Print all tasks");
     bool *help = flag_bool("h", false, "Print this message");
@@ -98,14 +130,7 @@ int main(int argc, char **argv) {
     }
 
     if (ls != NULL && *ls) {
-        const char *tasks_folder = scan_for_first_tasks_folder();
-        if (tasks_folder == NULL) {
-            printf("Unable to find tasks folder.\n");
-            return 1;
-        }
-        printf("Printing all tasks from %s...\n", tasks_folder);
-
-        return 0;
+        return list_all_tasks() ? 0 : 1;
     }
 
     usage(stdout);
