@@ -1,17 +1,16 @@
 #define NOB_IMPLEMENTATION
 #include "nob.h"
 
-#define FLAG_IMPLEMENTATION
-#include "flag.h"
-
 #define TASKS_FOLDER_NAME "tasks"
 #define TASKS_PATH_COMPONENT "/"TASKS_FOLDER_NAME
 #define PARENT_PATH_COMPONENT "/.."
 
-void usage(FILE *stream) {
-    fprintf(stream, "Usage: $task [ARGS]\n");
-    fprintf(stream, "OPTIONS:\n");
-    flag_print_options(stream);
+void print_usage(FILE *stream) {
+    fprintf(stream, "Usage: task <COMMAND> [OPTIONS]\n");
+    fprintf(stream, "COMMAND:\n");
+    fprintf(stream, "  ls: list tasks\n");
+    fprintf(stream, "    -t <tag> - filter by tag\n");
+    fprintf(stream, "    -c       - only show closed\n");
 }
 
 bool scan_for_first_tasks_folder(char *dir) {
@@ -80,7 +79,7 @@ Nob_String_View get_valid_huid(const char *string) {
     return (Nob_String_View) { .data = string, .count = 15 };
 }
 
-bool list_all_tasks(void) {
+bool list_all_tasks(char *tag, bool only_closed) {
     char tasks_folder[512] = {0};
     if (!scan_for_first_tasks_folder(tasks_folder)) {
         printf("Unable to find tasks folder.\n");
@@ -115,24 +114,40 @@ bool list_all_tasks(void) {
 }
 
 int main(int argc, char **argv) {
-    bool *ls = flag_bool("ls", NULL, "Print all tasks");
-    bool *help = flag_bool("h", false, "Print this message");
-
-    if (!flag_parse(argc, argv)) {
-        usage(stderr);
-        flag_print_error(stderr);
+    if (argc < 2) {
+        printf("Command expected, got nothing\n");
+        print_usage(stderr);
         return 1;
     }
 
-    if (help != NULL && *help) {
-        usage(stdout);
-        return 0;
-    }
+    if (strcmp(argv[1], "ls") == 0) {
+        int i = 2;
+        char *tag = NULL;
+        bool only_closed = false;
 
-    if (ls != NULL && *ls) {
-        return list_all_tasks() ? 0 : 1;
-    }
+        while (i < argc) {
+            if (strcmp(argv[i], "-t") == 0) {
+                i += 1;
+                if (i >= argc) {
+                    printf("Expected value for -t, got nothing\n");
+                    print_usage(stderr);
+                    return 1;
+                }
+                tag = argv[i];
+            } else if (strcmp(argv[i], "-c") == 0) {
+                only_closed = true;
+            } else {
+                printf("Unexpected option for ls: %s\n", argv[i]);
+                print_usage(stderr);
+                return 1;
+            }
+            i += 1;
+        }
 
-    usage(stdout);
-    return 1;
+        return list_all_tasks(tag, only_closed) ? 0 : 1;
+    } else {
+        printf("Unexpected argument: %s\n", argv[1]);
+        print_usage(stderr);
+        return 1;
+    }
 }
