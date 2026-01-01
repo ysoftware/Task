@@ -85,6 +85,7 @@ bool scan_for_first_tasks_folder(char *dir) {
     return NULL;
 }
 
+// TODO: convert time to UTC
 // 26122025-112830 is supported
 // 26122025-112830-arbitrary - not yet; TODO: how exactly to detect end of huid here?
 String_View get_valid_huid(const char *string) {
@@ -132,7 +133,9 @@ typedef struct {
 int compare_task_priority_descending(const void* a, const void* b) {
     const Task* sa = (const Task*)a;
     const Task* sb = (const Task*)b;
-    return sa->priority < sb->priority;
+    if (sa->priority < sb->priority) return 1;
+    if (sa->priority > sb->priority) return -1;
+    return 0;
 }
 
 bool list_all_tasks(char *filter_tag, bool only_closed, int task_title_fixed_length) {
