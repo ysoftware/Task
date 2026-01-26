@@ -86,22 +86,22 @@ bool scan_for_first_tasks_folder(char *dir) {
 }
 
 // TODO: convert time to UTC
-// 26122025-112830 is supported
-// 26122025-112830-arbitrary - not yet; TODO: how exactly to detect end of huid here?
+// 20251226-112830 is supported
+// 20251226-112830-arbitrary - not yet; TODO: how exactly to detect end of huid here?
 String_View get_valid_huid(const char *string) {
     String_View empty = {0};
     if (strlen(string) < 15) return empty;
 
-    if (!(string[0] >= '0' && string[0] <= '3')) return empty;
-    if (!(string[1] >= '0' && string[1] <= '9')) return empty; // this fails to check against day being 39 but I don't care for now
-
-    if (!(string[2] >= '0' && string[2] <= '1')) return empty;
+    if (!(string[0] >= '0' && string[0] <= '9')) return empty;
+    if (!(string[1] >= '0' && string[1] <= '9')) return empty;
+    if (!(string[2] >= '0' && string[2] <= '9')) return empty;
     if (!(string[3] >= '0' && string[3] <= '9')) return empty;
 
-    if (!(string[4] >= '0' && string[4] <= '2')) return empty;
+    if (!(string[4] >= '0' && string[4] <= '1')) return empty;
     if (!(string[5] >= '0' && string[5] <= '9')) return empty;
-    if (!(string[6] >= '0' && string[6] <= '9')) return empty;
-    if (!(string[7] >= '0' && string[7] <= '9')) return empty;
+
+    if (!(string[6] >= '0' && string[6] <= '3')) return empty;
+    if (!(string[7] >= '0' && string[7] <= '9')) return empty; // this fails to check against day being 39 but I don't care for now
 
     if (string[8] != '-') return empty;
 
