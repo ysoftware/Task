@@ -158,6 +158,10 @@ bool list_all_tasks(char *filter_tag, bool only_closed, int task_title_fixed_len
 
             String_Builder sb = {0};
             if (!read_entire_file(path, &sb)) continue;
+            if (sb.count == 0) {
+                printf("WARNING: Empty file: %s\n", path);
+                continue;
+            }
 
             int priority = 20;
 
