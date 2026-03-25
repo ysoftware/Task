@@ -121,7 +121,8 @@ typedef struct {
     String_View title;
     String_View file_path;
     String_View tags;
-    int priority;
+    bool in_progress;
+    int32_t priority;
 } Task;
 
 typedef struct {
@@ -130,11 +131,14 @@ typedef struct {
     size_t count;
 } Tasks;
 
-int compare_task_priority_descending(const void* a, const void* b) {
+int compare_task_priority_and_in_progress_descending(const void* a, const void* b) {
     const Task* sa = (const Task*)a;
     const Task* sb = (const Task*)b;
-    if (sa->priority < sb->priority) return 1;
-    if (sa->priority > sb->priority) return -1;
+    if (sa->in_progress < sb->in_progress) return 1;
+    else if (sa->in_progress > sb->in_progress) return -1;
+
+    else if (sa->priority < sb->priority) return 1;
+    else if (sa->priority > sb->priority) return -1;
     return 0;
 }
 
@@ -164,6 +168,7 @@ bool list_all_tasks(char *filter_tag, bool only_closed, int task_title_fixed_len
             }
 
             int priority = 20;
+            bool in_progress = true;
 
             String_View file_sv = sb_to_sv(sb);
             String_View task_title = sv_chop_by_sv(&file_sv, sv_from_cstr("\n\n"));
@@ -185,6 +190,9 @@ bool list_all_tasks(char *filter_tag, bool only_closed, int task_title_fixed_len
                 if (sv_eq(key, sv_from_cstr("STATUS"))) {
                     if (only_closed != sv_eq(value, sv_from_cstr("CLOSED"))) {
                         goto skip;
+                    }
+                    if (sv_eq(value, sv_from_cstr("OPEN"))) {
+                        in_progress = false;
                     }
                 } else if (sv_eq(key, sv_from_cstr("PRIORITY"))) {
                     char string[50] = {0};
@@ -212,6 +220,7 @@ bool list_all_tasks(char *filter_tag, bool only_closed, int task_title_fixed_len
                 .title = temp_sv_dup(task_title),
                 .file_path = temp_sv_dup(sv_from_cstr(*child)),
                 .tags = temp_sv_dup(tags),
+                .in_progress = in_progress
             }));
 
 skip:
@@ -219,7 +228,7 @@ skip:
         }
     }
 
-    qsort(tasks.items, tasks.count, sizeof(*tasks.items), compare_task_priority_descending);
+    qsort(tasks.items, tasks.count, sizeof(*tasks.items), compare_task_priority_and_in_progress_descending);
 
     da_foreach(Task, task, &tasks) {
         int print_length = task->title.count;
