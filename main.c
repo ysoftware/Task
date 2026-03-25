@@ -221,7 +221,8 @@ skip:
         int print_length = task->title.count;
         if (task_title_fixed_length > 0) print_length = MIN(task_title_fixed_length, print_length);
 
-        printf("tasks/" SV_Fmt "/task.md:1:1 |%2d| ", SV_Arg(task->file_path), task->priority);
+        printf("tasks/" SV_Fmt "/task.md:1:1 ", SV_Arg(task->file_path));
+        if (!only_closed) printf("|%2d| ", task->priority);
         printf("%-*.*s", task_title_fixed_length, print_length, (task->title).data);
         printf(" | " SV_Fmt "\n", SV_Arg(task->tags));
     }
