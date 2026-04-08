@@ -7,18 +7,19 @@
 #define PARENT_PATH_COMPONENT "/.."
 
 #define MIN(a, b) (((a)<(b))?(a):(b))
-#define DEFAULT_TASK_TITLE_FIXED_LENGTH 100
+#define DEFAULT_TASK_TITLE_FIXED_LENGTH 50
 
 void print_usage(FILE *stream) {
     fprintf(stream, "Usage: task <COMMAND> [OPTIONS]\n");
     fprintf(stream, "COMMAND:\n");
-    fprintf(stream, "  ls: list tasks sorted by priority\n");
+    fprintf(stream, "  ls: list active tasks sorted by priority\n");
     fprintf(stream, "    -t <tag> - filter by tag; default: none\n");
-    fprintf(stream, "    -c       - only show closed; default: only non-closed\n");
-    fprintf(stream, "    -f       - fix task title length to align tags, 0 to disable; default: %d\n", DEFAULT_TASK_TITLE_FIXED_LENGTH);
+    fprintf(stream, "    -c       - only show closed; default: only active tasks\n");
+    fprintf(stream, "    -f       - fix task title output length, 0 to disable; default: %d\n", DEFAULT_TASK_TITLE_FIXED_LENGTH);
     fprintf(stream, "\n");
     fprintf(stream, "You can also disable each flag by slashing it after the dash.\n");
-    fprintf(stream, "For example: task -/c will display non-closed tasks.\n");
+    fprintf(stream, "Task is considered active if it's not in status 'OPEN' or 'CLOSED'");
+    fprintf(stream, "For example: task ls -/c will display non-closed tasks.\n");
 }
 
 String_View temp_sv_dup(String_View sv)
@@ -121,7 +122,7 @@ typedef struct {
     String_View title;
     String_View file_path;
     String_View tags;
-    bool in_progress;
+    bool is_active;
     int32_t priority;
 } Task;
 
@@ -134,8 +135,8 @@ typedef struct {
 int compare_task_priority_and_in_progress_descending(const void* a, const void* b) {
     const Task* sa = (const Task*)a;
     const Task* sb = (const Task*)b;
-    if (sa->in_progress < sb->in_progress) return 1;
-    else if (sa->in_progress > sb->in_progress) return -1;
+    if (sa->is_active < sb->is_active) return 1;
+    else if (sa->is_active > sb->is_active) return -1;
 
     else if (sa->priority < sb->priority) return 1;
     else if (sa->priority > sb->priority) return -1;
@@ -168,7 +169,7 @@ bool list_all_tasks(char *filter_tag, bool only_closed, int task_title_fixed_len
             }
 
             int priority = 20;
-            bool in_progress = true;
+            bool is_active = true;
 
             String_View file_sv = sb_to_sv(sb);
             String_View task_title = sv_chop_by_sv(&file_sv, sv_from_cstr("\n\n"));
@@ -191,8 +192,8 @@ bool list_all_tasks(char *filter_tag, bool only_closed, int task_title_fixed_len
                     if (only_closed != sv_eq(value, sv_from_cstr("CLOSED"))) {
                         goto skip;
                     }
-                    if (sv_eq(value, sv_from_cstr("OPEN"))) {
-                        in_progress = false;
+                    if (sv_eq(value, sv_from_cstr("OPEN")) || sv_eq(value, sv_from_cstr("CLOSED"))) {
+                        is_active = false;
                     }
                 } else if (sv_eq(key, sv_from_cstr("PRIORITY"))) {
                     char string[50] = {0};
@@ -220,7 +221,7 @@ bool list_all_tasks(char *filter_tag, bool only_closed, int task_title_fixed_len
                 .title = temp_sv_dup(task_title),
                 .file_path = temp_sv_dup(sv_from_cstr(*child)),
                 .tags = temp_sv_dup(tags),
-                .in_progress = in_progress
+                .is_active = is_active
             }));
 
 skip:
@@ -232,10 +233,14 @@ skip:
 
     da_foreach(Task, task, &tasks) {
         int print_length = task->title.count;
-        if (task_title_fixed_length > 0) print_length = MIN(task_title_fixed_length, print_length);
+        int this_title_fixed_length = task_title_fixed_length;
 
         printf("tasks/" SV_Fmt "/task.md:1:1", SV_Arg(task->file_path));
-        printf(" %-*.*s", task_title_fixed_length, print_length, (task->title).data);
+
+        if (task->is_active && this_title_fixed_length > 3) this_title_fixed_length -= printf(" >");
+        if (task_title_fixed_length > 0) print_length = MIN(this_title_fixed_length, print_length);
+
+        printf(" %-*.*s", this_title_fixed_length, print_length, (task->title).data);
         printf(" |");
         if (!only_closed) printf("%2d|", task->priority);
         printf(" " SV_Fmt "\n", SV_Arg(task->tags));
